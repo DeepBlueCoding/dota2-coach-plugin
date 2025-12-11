@@ -1,0 +1,19 @@
+{
+  "name": "dota2-coach",
+  "owner": {
+    "name": "DeepBlueCoding",
+    "email": "dev@deepbluecoding.com"
+  },
+  "metadata": {
+    "description": "Dota 2 coaching plugin with MCP server and skills",
+    "version": "1.1.0"
+  },
+  "plugins": [
+    {
+      "name": "dota2-coach",
+      "source": ".",
+      "description": "Professional Dota 2 replay analysis with coaching methodology",
+      "version": "1.1.0.dev1"
+    }
+  ]
+}
