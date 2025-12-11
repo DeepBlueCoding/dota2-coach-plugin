@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Verify version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          PLUGIN_VERSION=$(uv run python -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+
+          echo "Tag version: $TAG_VERSION"
+          echo "Package version: $PKG_VERSION"
+          echo "Plugin version: $PLUGIN_VERSION"
+
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "ERROR: Tag version ($TAG_VERSION) does not match package version ($PKG_VERSION)"
+            exit 1
+          fi
+
+          if [ "$TAG_VERSION" != "$PLUGIN_VERSION" ]; then
+            echo "ERROR: Tag version ($TAG_VERSION) does not match plugin.json version ($PLUGIN_VERSION)"
+            exit 1
+          fi
+
+      - name: Validate plugin structure
+        run: |
+          uv run python -c "
+          import json
+          import os
+
+          # Validate plugin.json
+          with open('.claude-plugin/plugin.json') as f:
+              plugin = json.load(f)
+          print(f'Plugin: {plugin[\"name\"]} v{plugin[\"version\"]}')
+
+          # Validate skills exist
+          skills_dir = 'skills'
+          for skill_name in os.listdir(skills_dir):
+              skill_path = os.path.join(skills_dir, skill_name)
+              if os.path.isdir(skill_path):
+                  skill_md = os.path.join(skill_path, 'SKILL.md')
+                  if os.path.exists(skill_md):
+                      print(f'Skill found: {skill_name}')
+
+          # Validate .mcp.json
+          with open('.mcp.json') as f:
+              mcp = json.load(f)
+          for name in mcp:
+              print(f'MCP Server: {name}')
+
+          print('Validation complete')
+          "
+
+      - name: Build package
+        run: uv build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  check-version:
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+    steps:
+      - name: Check if pre-release
+        id: check
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          # PEP 440 pre-release: dev, a, b, rc (e.g., 1.0.0.dev1, 1.0.0a1, 1.0.0b1, 1.0.0rc1)
+          if [[ "$VERSION" =~ (\.dev|a[0-9]|b[0-9]|rc[0-9]) ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "Detected pre-release version: $VERSION"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "Detected stable version: $VERSION"
+          fi
+
+  publish-testpypi:
+    needs: [build, check-version]
+    runs-on: ubuntu-latest
+    if: needs.check-version.outputs.is_prerelease == 'true'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/dota2-coach-plugin/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    needs: [build, check-version]
+    runs-on: ubuntu-latest
+    if: needs.check-version.outputs.is_prerelease == 'false'
+    environment:
+      name: pypi
+      url: https://pypi.org/project/dota2-coach-plugin/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: [build, check-version, publish-pypi]
+    runs-on: ubuntu-latest
+    if: needs.check-version.outputs.is_prerelease == 'false'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

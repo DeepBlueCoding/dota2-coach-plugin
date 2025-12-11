@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Validate plugin.json
+        run: |
+          uv run python -c "
+          import json
+          with open('.claude-plugin/plugin.json') as f:
+              plugin = json.load(f)
+
+          required = ['name', 'version', 'description']
+          for field in required:
+              if field not in plugin:
+                  raise ValueError(f'Missing required field: {field}')
+
+          print(f'Plugin: {plugin[\"name\"]} v{plugin[\"version\"]}')
+          print('plugin.json is valid')
+          "
+
+      - name: Validate SKILL.md files
+        run: |
+          uv run python -c "
+          import os
+          import re
+
+          skills_dir = 'skills'
+          if not os.path.exists(skills_dir):
+              raise ValueError('skills/ directory not found')
+
+          for skill_name in os.listdir(skills_dir):
+              skill_path = os.path.join(skills_dir, skill_name)
+              if not os.path.isdir(skill_path):
+                  continue
+
+              skill_md = os.path.join(skill_path, 'SKILL.md')
+              if not os.path.exists(skill_md):
+                  raise ValueError(f'SKILL.md not found in {skill_path}')
+
+              with open(skill_md) as f:
+                  content = f.read()
+
+              # Check YAML frontmatter
+              if not content.startswith('---'):
+                  raise ValueError(f'{skill_md}: Missing YAML frontmatter')
+
+              # Extract frontmatter
+              match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+              if not match:
+                  raise ValueError(f'{skill_md}: Invalid YAML frontmatter format')
+
+              frontmatter = match.group(1)
+              if 'name:' not in frontmatter:
+                  raise ValueError(f'{skill_md}: Missing name in frontmatter')
+              if 'description:' not in frontmatter:
+                  raise ValueError(f'{skill_md}: Missing description in frontmatter')
+
+              print(f'Validated: {skill_md}')
+
+          print('All SKILL.md files are valid')
+          "
+
+      - name: Validate .mcp.json
+        run: |
+          uv run python -c "
+          import json
+          with open('.mcp.json') as f:
+              mcp = json.load(f)
+
+          for server_name, config in mcp.items():
+              if 'command' not in config:
+                  raise ValueError(f'MCP server {server_name}: missing command')
+              print(f'MCP Server: {server_name} -> {config[\"command\"]}')
+
+          print('.mcp.json is valid')
+          "
+
+      - name: Lint markdown files
+        run: |
+          uv run ruff check --select=E,W || true  # Just warn, don't fail
+
+      - name: Check version consistency
+        run: |
+          uv run python -c "
+          import json
+          import tomllib
+
+          with open('pyproject.toml', 'rb') as f:
+              pyproject = tomllib.load(f)
+
+          with open('.claude-plugin/plugin.json') as f:
+              plugin = json.load(f)
+
+          pyproject_version = pyproject['project']['version']
+          plugin_version = plugin['version']
+
+          if pyproject_version != plugin_version:
+              raise ValueError(f'Version mismatch: pyproject.toml={pyproject_version}, plugin.json={plugin_version}')
+
+          print(f'Version consistent: {pyproject_version}')
+          "
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Build package
+        run: uv build
+
+      - name: Check build artifacts
+        run: |
+          ls -la dist/
+          echo "Build successful"

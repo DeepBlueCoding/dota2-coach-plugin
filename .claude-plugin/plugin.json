@@ -1,0 +1,19 @@
+{
+  "name": "dota2-coach",
+  "version": "1.0.0",
+  "description": "Professional Dota 2 replay analysis with coaching methodology. Analyzes deaths, farming patterns, fights, rotations, and provides actionable coaching advice.",
+  "author": {
+    "name": "Equilibrium Coach",
+    "url": "https://github.com/equilibrium-coach"
+  },
+  "repository": "https://github.com/equilibrium-coach/dota2-coach-plugin",
+  "license": "MIT",
+  "keywords": [
+    "dota2",
+    "esports",
+    "coaching",
+    "replay-analysis",
+    "mcp",
+    "gaming"
+  ]
+}
