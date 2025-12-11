@@ -1,6 +1,6 @@
 [project]
 name = "dota2-coach-plugin"
-version = "1.0.0"
+version = "1.1.0.dev1"
 description = "Claude Code plugin for Dota 2 replay analysis with professional coaching methodology"
 readme = "README.md"
 license = "MIT"
@@ -57,7 +57,7 @@ include = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "1.0.0"
+version = "1.1.0.dev1"
 version_files = [
     "pyproject.toml:^version",
     ".claude-plugin/plugin.json:version",
