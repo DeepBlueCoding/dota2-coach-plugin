@@ -1,5 +1,5 @@
 {
-  "name": "dota2-coaching",
+  "name": "dota2-coach",
   "version": "1.1.0.dev1",
   "description": "Professional Dota 2 replay analysis with coaching methodology. Analyzes deaths, farming patterns, fights, rotations, and provides actionable coaching advice.",
   "author": {
