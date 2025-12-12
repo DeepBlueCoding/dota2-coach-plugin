@@ -1,7 +1,7 @@
 {
   "dota2-match-analysis": {
     "command": "uvx",
-    "args": ["--from", "mcp-replay-dota2", "dota-match-mcp-server"],
+    "args": ["--from", "mcp-replay-dota2==1.0.9", "dota-match-mcp-server"],
     "env": {}
   }
 }

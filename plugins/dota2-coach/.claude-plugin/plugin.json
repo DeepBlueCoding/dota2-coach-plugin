@@ -1,6 +1,6 @@
 {
   "name": "dota2-coach",
-  "version": "1.0.0",
+  "version": "1.0.9",
   "description": "Professional Dota 2 replay analysis with coaching methodology. Analyzes deaths, farming patterns, fights, rotations, and provides actionable coaching advice.",
   "author": {
     "name": "Equilibrium Coach",
