@@ -54,12 +54,12 @@ jobs:
           import os
 
           # Validate plugin.json
-          with open('.claude-plugin/plugin.json') as f:
+          with open('plugins/dota2-coach/.claude-plugin/plugin.json') as f:
               plugin = json.load(f)
           print(f'Plugin: {plugin[\"name\"]} v{plugin[\"version\"]}')
 
           # Validate skills exist
-          skills_dir = 'skills'
+          skills_dir = 'plugins/dota2-coach/skills'
           for skill_name in os.listdir(skills_dir):
               skill_path = os.path.join(skills_dir, skill_name)
               if os.path.isdir(skill_path):
@@ -68,7 +68,7 @@ jobs:
                       print(f'Skill found: {skill_name}')
 
           # Validate .mcp.json
-          with open('.mcp.json') as f:
+          with open('plugins/dota2-coach/.mcp.json') as f:
               mcp = json.load(f)
           for name in mcp:
               print(f'MCP Server: {name}')
